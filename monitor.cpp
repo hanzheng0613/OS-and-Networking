@@ -7,10 +7,13 @@
 #include <chrono>
 
 #include <cstring>
-
+#include <boost/interprocess/sync/named_mutex.hpp>
 #include <boost/interprocess/mapped_region.hpp>
+#include <boost/interprocess/sync/scoped_lock.hpp>
 
 using namespace boost::interprocess;
+const char* SHM_NAME = "Shared_Memory";
+const char* MUTEX_NAME = "Mutex";
 
 struct SharedData {
     int counter;
@@ -40,7 +43,7 @@ int main() {
     try {
         shared_memory_object shm(open_only, "Shared_Memory", read_only);
         mapped_region region(shm, read_only);
-
+        named_mutex mutex(open_only, MUTEX_NAME);
         const SharedData* data = static_cast<const SharedData*>(region.get_address());
 
         std::cout << "Start Profiling \n";
@@ -48,19 +51,32 @@ int main() {
         int last_counter = data->counter;
         
         std::string last_message = data->message;
-
+        
+        boolean_t isReady(false);
+        
         while (true) {
+            // Catch Write()
             if (data->counter != last_counter ||
                 std::strcmp(data->message, last_message.c_str()) != 0) {
                 last_counter = data->counter;
                 
                 last_message = data->message;
-
-                std::cout << time() << "Monitor: counter=" << last_counter
+                
+                isReady = true;
+                
+                std::cout << time() << "Monitor: Write: counter=" << last_counter
                           << ", message = " << last_message << std::endl;
             }
-
-            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            // Catch Read()
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            if(isReady&&mutex.try_lock()&&last_counter==data->counter&&last_message==data->message){
+                std::cout << time() << "Monitor: read: counter=" << last_counter
+                          << ", message = " << last_message << std::endl;
+                isReady=false;
+                
+            }
+            mutex.unlock();
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
 
     } catch (const std::exception& e) {
