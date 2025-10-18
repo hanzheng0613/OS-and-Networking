@@ -22,37 +22,41 @@ struct SharedData {
 };
 
 
-int main() {
-    
+void read() {
+
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    try {
-        shared_memory_object shm(open_only, SHM_NAME, read_write);
-        mapped_region region(shm, read_write);
-        void* address = region.get_address();
-        SharedData* data = static_cast<SharedData*>(address);
+ 
+    shared_memory_object shm(open_only, SHM_NAME, read_write);
+    mapped_region region(shm, read_write);
+    void* address = region.get_address();
+    SharedData* data = static_cast<SharedData*>(address);
 
-        named_mutex mutex(open_only, MUTEX_NAME);
+    named_mutex mutex(open_only, MUTEX_NAME);
 
-        int count = 0;
+    int count = 0;
 
-        while (count < 100) {
-            {
-                scoped_lock<named_mutex> lock(mutex);
-                if (data->counter != count) {
-                    count = data->counter;
-                    std::cout << " Read: " << data->message << std::endl;
-                }
+ 
+    while (count < 100) {
+        {
+            scoped_lock<named_mutex> lock(mutex);
+            if (data->counter != count) {
+                count = data->counter;
+                //std::cout << " Read: " << data->message << std::endl;
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(120));
         }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
 
-        std::cout  << " Finished." << std::endl;
+    std::cout << "Finished reading." << std::endl;
+}
 
+int main() {
+    try {
+        read();
     } catch (interprocess_exception &e) {
         std::cerr << "Exception: " << e.what() << std::endl;
         return 1;
     }
-
     return 0;
 }
