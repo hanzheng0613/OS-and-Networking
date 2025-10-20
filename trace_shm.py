@@ -18,9 +18,8 @@ int trace_read(struct pt_regs *ctx) {
 b = BPF(text=bpf_text)
 binary = "./shm"
 
-write_offset = 0x2214
-read_offset = 0x230c
 
+ 
 
 b.attach_uprobe(name=binary, sym="write_to_shared_memory", fn_name="trace_write")
 b.attach_uprobe(name=binary,sym="read_from_shared_memory", fn_name="trace_read")
