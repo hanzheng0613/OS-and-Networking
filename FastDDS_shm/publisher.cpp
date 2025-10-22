@@ -24,19 +24,16 @@ using namespace eprosima::fastdds::dds;
 
 using namespace eprosima::fastdds::rtps;
 
-
-void publish(DataWriter* writer)
+int count = 0;
+extern "C" void publish(DataWriter* writer)
 {
     HelloMsg msg;
-    for (int count = 0; count < 10; ++count)
-    {
-
-        msg.id(count);
+    msg.id(count);
         msg.message("Message: Number " + std::to_string(count));
         writer->write(&msg);
         std::cout << "Send: id: " << msg.id() << " with message: " << msg.message() << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
+
 }
 
 int main()
@@ -86,7 +83,10 @@ int main()
         std::cerr << "Failed to create a new DataWriter!" << std::endl;
         return 1;
     }
-    publish(writer);
+    for(int i=0;i<100;i++){
+    	count=i;
+    	publish(writer);
+    }
     participant->delete_contained_entities();
     DomainParticipantFactory::get_instance()->delete_participant(participant);
 

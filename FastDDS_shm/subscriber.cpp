@@ -24,24 +24,21 @@ using namespace eprosima::fastdds::dds;
 
 using namespace eprosima::fastdds::rtps;
 
-class HelloMsgListener : public DataReaderListener
-{
-public:
-    void on_data_available(DataReader* reader) override
-    {
-        SampleInfo info;
-        HelloMsg msg;
-        if (reader->take_next_sample(&msg, &info) == RETCODE_OK && info.valid_data)
-        {
-            std::cout << "Received id: " << msg.id() << " with message: " << msg.message() << std::endl;
-        }
-    }
-};
-void subscribe(DataReader* reader)
+extern "C" void subscribe(DataReader* reader)
 {
     std::cout << "Start running and waiting for messages..." << std::endl;
+
+    SampleInfo info;
+    HelloMsg msg;
+
     while (true)
     {
+        if (reader->take_next_sample(&msg, &info) == RETCODE_OK && info.valid_data)
+        {
+            std::cout << "Received id: " << msg.id()
+                      << " with message: " << msg.message() << std::endl;
+        }
+
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 }
@@ -85,11 +82,11 @@ int main()
         std::cerr << "Failed to create a new subscriber!" << std::endl;
         return 1;
     }
-    HelloMsgListener listener;
+    
     DataReader* reader = subscriber->create_datareader(
         topic,
         DATAREADER_QOS_DEFAULT,
-        &listener);
+       	nullptr);
 
     if (!reader)
     {
@@ -97,7 +94,9 @@ int main()
         return 1;
     }
 
+    	
     subscribe(reader);
+   
     participant->delete_contained_entities();
     DomainParticipantFactory::get_instance()->delete_participant(participant);
 
