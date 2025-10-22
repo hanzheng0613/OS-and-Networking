@@ -1,0 +1,31 @@
+
+CXX = g++
+CXXFLAGS = -I/usr/local/include -std=c++17 -g
+LDFLAGS = -L/usr/local/lib -lfastdds -lfastcdr -lpthread
+
+
+COMMON_SRCS = HelloMsg_idlPubSubTypes.cxx HelloMsg_idlTypeObjectSupport.cxx
+
+PUBLISHER_SRCS = publisher.cpp $(COMMON_SRCS)
+SUBSCRIBER_SRCS = subscriber.cpp $(COMMON_SRCS)
+
+
+PUBLISHER_BIN = publish
+SUBSCRIBER_BIN = subscribe
+
+
+all: $(PUBLISHER_BIN) $(SUBSCRIBER_BIN)
+
+
+$(PUBLISHER_BIN): $(PUBLISHER_SRCS)
+	$(CXX) $(CXXFLAGS) $(PUBLISHER_SRCS) -o $(PUBLISHER_BIN) $(LDFLAGS)
+
+
+$(SUBSCRIBER_BIN): $(SUBSCRIBER_SRCS)
+	$(CXX) $(CXXFLAGS) $(SUBSCRIBER_SRCS) -o $(SUBSCRIBER_BIN) $(LDFLAGS)
+
+
+clean:
+	rm -f $(PUBLISHER_BIN) $(SUBSCRIBER_BIN) *.o
+
+.PHONY: all clean
