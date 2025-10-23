@@ -5,12 +5,12 @@ from datetime import datetime, timedelta
 bpf_text = """
 int trace_write(struct pt_regs *ctx) {
     u64 ts = bpf_ktime_get_ns() / 1000000;
-    bpf_trace_printk("%llu ms: publish called\\n", ts);
+    bpf_trace_printk("%llu ms: write() called\\n", ts);
     return 0;
 }
 int trace_read(struct pt_regs *ctx) {
     u64 ts = bpf_ktime_get_ns() / 1000000;
-    bpf_trace_printk("%llu ms: subscribe called\\n", ts);
+    bpf_trace_printk("%llu ms: take_next_sample() called\\n", ts);
     return 0;
 }
 """
@@ -20,7 +20,7 @@ binary = "/usr/local/lib/libfastdds.so"
 
 
 # Attach uprobes to your functions
-b.attach_uprobe(name="./publish", sym="publish", fn_name="trace_write")
+b.attach_uprobe(name="/usr/local/lib/libfastdds.so.3.4",sym="_ZN8eprosima7fastdds3dds10DataWriter5writeEPKv", fn_name="trace_write")
 b.attach_uprobe(name="/usr/local/lib/libfastdds.so",sym="_ZN8eprosima7fastdds3dds14DataReaderImpl16take_next_sampleEPvPNS1_10SampleInfoE", fn_name="trace_read")
 
 print("Tracing... Ctrl-C to exit.")
