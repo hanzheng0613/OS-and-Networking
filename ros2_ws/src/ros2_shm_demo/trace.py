@@ -1,18 +1,17 @@
-#!/usr/bin/env python3
-
 from bcc import BPF
-
-
-from datetime import datetime
+import os
+import time
+from datetime import datetime, timedelta
 
 bpf_text = """
-int trace_publish(void *ctx) {
-    bpf_trace_printk("Publisher: publish_message() called\\n");
+int trace_write(struct pt_regs *ctx) {
+    u64 ts = bpf_ktime_get_ns() / 1000000;
+    bpf_trace_printk("%llu ms: FastDDS::write() called\\n", ts);
     return 0;
 }
-
-int trace_take(void *ctx) {
-    bpf_trace_printk("Subscriber: handle_message() called\\n");
+int trace_read(struct pt_regs *ctx) {
+    u64 ts = bpf_ktime_get_ns() / 1000000;
+    bpf_trace_printk("%llu ms: FastDDS::take_next_sample() called\\n", ts);
     return 0;
 }
 """
@@ -20,35 +19,22 @@ int trace_take(void *ctx) {
 b = BPF(text=bpf_text)
 
 
-publisher_bin = "/home/hanzhengwang/Desktop/OS/ros2_ws/build/ros2_shm_demo/shm_publisher"
 
+# Attach uprobes to your functions
+b.attach_uprobe(name="/opt/ros/humble/lib/libfastrtps.so.2.6.10",sym="_ZN8eprosima7fastdds3dds14DataWriterImpl5writeEPv", fn_name="trace_write")
+b.attach_uprobe(name="/opt/ros/humble/lib/libfastrtps.so.2.6.10",sym="_ZN8eprosima7fastdds3dds14DataReaderImpl12read_or_takeERNS1_18LoanableCollectionERNS1_16LoanableSequenceINS1_10SampleInfoESt17integral_constantIbLb1EEEEiRKNS_8fastrtps4rtps16InstanceHandle_tEtttbbb", fn_name="trace_read")
 
-subscriber_bin = "/home/hanzhengwang/Desktop/OS/ros2_ws/build/ros2_shm_demo/shm_subscriber"
+print("Tracing... Ctrl-C to exit.")
+boot_time = time.time() - (b.ksymtime / 1e6 if hasattr(b, "ksymtime") else 0)
 
-
-
-
-b.attach_uprobe(name=publisher_bin,
-                sym="_ZN12ShmPublisher15publish_messageEv",
-                fn_name="trace_publish")
-
-b.attach_uprobe(name=subscriber_bin,
-                sym="_ZN6rclcpp12SubscriptionIN8std_msgs3msg7String_ISaIvEEES4_S5_S5_NS_23message_memory_strategy21MessageMemoryStrategyIS5_S4_EEE14handle_messageERSt10shared_ptrIvERKNS_11MessageInfoE",
-                fn_name="trace_take")
-                
-                
-print("Start Trace:")
-
-try:
-    while True:
+while True:
+    try:
         (task, pid, cpu, flags, ts, msg) = b.trace_fields()
-
-        now = datetime.now()
-        
-        timestamp = now.strftime("%H:%M:%S.%f")[:-3] 
-        
-        
-        print(f"{timestamp} {msg.decode('utf-8')}")
-except KeyboardInterrupt:
-    print("Detaching...")
+        # ts = monotonic ms since boot
+        # Convert to wall-clock time
+        wall_time = datetime.fromtimestamp(time.time())
+        ms = int(ts % 1000)
+        print(f"{wall_time.strftime('%d:%m:%Y %H:%M:%S')}.{ms:03d} - {msg}")
+    except KeyboardInterrupt:
+        break
 
